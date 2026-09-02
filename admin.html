@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Planners By Dounia - Admin</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Montserrat:wght@400;500;600&display=swap" rel="stylesheet">
+  
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- HTML5 QR Code Scanner Library -->
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: 'Montserrat', sans-serif;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #f7cece 0%, #fae1d4 50%, #f3cbbe 100%);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .admin-container {
+      background: #fcf8f2;
+      width: 100%;
+      max-width: 550px;
+      padding: 2rem;
+      border-radius: 24px;
+      box-shadow: 0 15px 35px rgba(150, 90, 70, 0.15);
+      border: 1px solid rgba(212, 163, 143, 0.3);
+      margin-top: 10px;
+    }
+
+    .header-title {
+      font-family: 'Playfair Display', serif;
+      color: #7a4635;
+      font-size: 2rem;
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+
+    .section-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #8a4e3b;
+      margin-top: 1.5rem;
+      margin-bottom: 0.8rem;
+      border-bottom: 2px solid #e8d5cc;
+      padding-bottom: 4px;
+    }
+
+    .form-group {
+      margin-bottom: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #7a4635;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1px solid #d4a38f;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 0.95rem;
+      background: #ffffff;
+      outline: none;
+    }
+
+    input:focus, select:focus {
+      border-color: #8a4e3b;
+      box-shadow: 0 0 0 2px rgba(138, 78, 59, 0.2);
+    }
+
+    .btn {
+      background: #8a4e3b;
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: background 0.2s ease;
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn:hover {
+      background: #6e3c2c;
+    }
+
+    .btn-secondary {
+      background: #d4a38f;
+    }
+
+    .btn-secondary:hover {
+      background: #b88370;
+    }
+
+    .scan-buttons {
+      display: flex;
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    #reader {
+      width: 100%;
+      margin-top: 10px;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .client-card {
+      background: #ffffff;
+      border: 1px solid #e8d5cc;
+      border-radius: 14px;
+      padding: 15px;
+      margin-top: 15px;
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      font-size: 0.9rem;
+      color: #5c382b;
+    }
+
+    .status-msg {
+      margin-top: 10px;
+      font-weight: 600;
+      font-size: 0.85rem;
+      text-align: center;
+    }
+
+    .status-success { color: #2e7d32; }
+    .status-error { color: #c62828; }
+  </style>
+</head>
+<body>
+
+  <div class="admin-container">
+    <h1 class="header-title">Espace Administration</h1>
+
+    <!-- SECTION 1: SEARCH CLIENT -->
+    <div class="section-title">1. Rechercher un Client</div>
+    <div class="form-group">
+      <label>ID du Client</label>
+      <div style="display: flex; gap: 8px;">
+        <input type="text" id="search-id" placeholder="Ex: CLI_06S9517T">
+        <button class="btn" onclick="searchClientById()">Chercher</button>
+      </div>
+    </div>
+
+    <div class="scan-buttons">
+      <button class="btn btn-secondary" style="flex:1;" onclick="toggleCameraScanner()">📷 Scanner QR (Caméra)</button>
+      <label class="btn btn-secondary" style="flex:1; cursor:pointer;">
+        🖼️ QR depuis Image
+        <input type="file" id="qr-file-input" accept="image/*" style="display:none;" onchange="scanQRFromImage(this)">
+      </label>
+    </div>
+
+    <div id="reader"></div>
+
+    <!-- SECTION 2: CLIENT DETAILS & EDIT NAME/PHONE -->
+    <div id="client-section" style="display: none;">
+      <div class="section-title">2. Informations du Client</div>
+      <div class="client-card">
+        <div class="info-row"><strong>ID:</strong> <span id="disp-id"></span></div>
+        <div class="info-row"><strong>Points Actuels:</strong> <span id="disp-points"></span></div>
+        <div class="info-row"><strong>Points Cumulés:</strong> <span id="disp-lifetime"></span></div>
+        <div class="info-row"><strong>Nombre d'Achats:</strong> <span id="disp-purchases-count"></span></div>
+
+        <!-- EDIT FULLNAME -->
+        <div class="form-group" style="margin-top: 15px;">
+          <label>Modifier le Nom Complet</label>
+          <div style="display: flex; gap: 8px;">
+            <input type="text" id="edit-fullname">
+            <button class="btn" onclick="updateClientName()">Enregistrer</button>
+          </div>
+        </div>
+
+        <!-- EDIT PHONE NUMBER -->
+        <div class="form-group" style="margin-top: 10px;">
+          <label>Modifier le Numéro de Téléphone</label>
+          <div style="display: flex; gap: 8px;">
+            <input type="text" id="edit-phone" placeholder="Ex: 0661234567">
+            <button class="btn" onclick="updateClientPhone()">Enregistrer Tél</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECTION 3: ADD PURCHASE -->
+      <div class="section-title">3. Ajouter un Achat</div>
+      <div class="client-card">
+        <div class="form-group">
+          <label>Prix de l'achat</label>
+          <input type="number" id="purchase-price" placeholder="Ex: 5000" step="0.01">
+        </div>
+
+        <div class="form-group">
+          <label>Description de l'achat</label>
+          <input type="text" id="purchase-desc" placeholder="Ex: Planner Rose Gold + Stylo">
+        </div>
+
+        <div class="form-group">
+          <label>Réduction de Prix</label>
+          <select id="purchase-discount">
+            <option value="0">0% (0 Pts - Gagne des points)</option>
+            <option value="10">10% (Coûte 15 Pts)</option>
+            <option value="20">20% (Coûte 25 Pts)</option>
+            <option value="30">30% (Coûte 35 Pts)</option>
+          </select>
+        </div>
+
+        <button class="btn" style="width: 100%; margin-top: 10px;" onclick="processPurchase()">Valider l'Achat</button>
+      </div>
+    </div>
+
+    <div id="status-msg" class="status-msg"></div>
+  </div>
+
+  <script>
+    // Password protection on page load
+    const ADMIN_PASSWORD = "admin"; // Change this password if needed
+    const enteredPass = prompt("Veuillez entrer le mot de passe administrateur:");
+    if (enteredPass !== ADMIN_PASSWORD) {
+      alert("Accès refusé.");
+      document.body.innerHTML = "<h2 style='text-align:center; margin-top:50px; color:#7a4635;'>Accès non autorisé</h2>";
+    }
+
+    const SUPABASE_URL = 'https://qiycykcavkrecxgzrhmt.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFpeWN5a2NhdmtyZWN4Z3pyaG10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgyMjE3NjUsImV4cCI6MjEwMzc5Nzc2NX0.NHfzCnn60BFGBn0_wyUHQG4fnfGX4PPWHcgxcHozF6s';
+    
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    
+    let activeClient = null;
+    let html5QrCode = null;
+
+    // Extract ID if full QR URL string is supplied
+    function extractIdFromQR(qrData) {
+      if (!qrData) return "";
+      let cleanData = qrData.trim();
+      if (cleanData.includes('?id=')) {
+        return cleanData.split('?id=')[1].split('&')[0];
+      }
+      return cleanData;
+    }
+
+    function showStatus(msg, isError = false) {
+      const el = document.getElementById('status-msg');
+      el.innerText = msg;
+      el.className = 'status-msg ' + (isError ? 'status-error' : 'status-success');
+    }
+
+    async function searchClientById(targetId) {
+      const rawInput = targetId || document.getElementById('search-id').value;
+      const clientId = extractIdFromQR(rawInput);
+      
+      if (!clientId) {
+        showStatus("Veuillez entrer un ID valide.", true);
+        return;
+      }
+
+      showStatus("Recherche en cours...");
+
+      const { data, error } = await supabaseClient
+        .from('Clients')
+        .select('*')
+        .eq('Client_ID', clientId)
+        .single();
+
+      if (error || !data) {
+        showStatus("Client non trouvé.", true);
+        document.getElementById('client-section').style.display = 'none';
+        activeClient = null;
+      } else {
+        activeClient = data;
+        document.getElementById('disp-id').innerText = data['Client_ID'];
+        document.getElementById('disp-points').innerText = data['Current Points'] || '0';
+        document.getElementById('disp-lifetime').innerText = data['Lifetime Points'] || '0';
+        document.getElementById('disp-purchases-count').innerText = data['Purchases N°'] || '0';
+        document.getElementById('edit-fullname').value = data['Client Fullname'] || '';
+        document.getElementById('edit-phone').value = data['Phone N°'] || '';
+
+        document.getElementById('client-section').style.display = 'block';
+        showStatus("Client chargé avec succès!");
+      }
+    }
+
+    // Camera QR Scanning
+    function toggleCameraScanner() {
+      if (!html5QrCode) {
+        html5QrCode = new Html5Qrcode("reader");
+      }
+
+      if (html5QrCode.isScanning) {
+        html5QrCode.stop().then(() => {
+          document.getElementById('reader').innerHTML = "";
+        });
+      } else {
+        html5QrCode.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: { width: 250, height: 250 } },
+          (decodedText) => {
+            const extractedId = extractIdFromQR(decodedText);
+            document.getElementById('search-id').value = extractedId;
+            html5QrCode.stop();
+            document.getElementById('reader').innerHTML = "";
+            searchClientById(extractedId);
+          },
+          (errorMessage) => { /* Ignore scanning errors */ }
+        );
+      }
+    }
+
+    async function scanQRFromImage(inputElement) {
+      if (inputElement.files.length === 0) return;
+      const imageFile = inputElement.files[0];
+      showStatus("Lecture de l'image...");
+
+      // 1. Primary Method: Native Browser Barcode Detector
+      if ('BarcodeDetector' in window) {
+        try {
+          const barcodeDetector = new BarcodeDetector({ formats: ['qr_code'] });
+          const imageBitmap = await createImageBitmap(imageFile);
+          const barcodes = await barcodeDetector.detect(imageBitmap);
+          if (barcodes.length > 0) {
+            const extractedId = extractIdFromQR(barcodes[0].rawValue);
+            document.getElementById('search-id').value = extractedId;
+            searchClientById(extractedId);
+            return;
+          }
+        } catch (e) {
+          console.warn("BarcodeDetector fallback to canvas padding:", e);
+        }
+      }
+
+      // 2. Fallback: Add white margin (Quiet Zone) via Canvas then scan
+      const img = new Image();
+      img.onload = function () {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const padding = 40; // White border padding in pixels
+
+        canvas.width = img.width + (padding * 2);
+        canvas.height = img.height + (padding * 2);
+
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, padding, padding);
+
+        canvas.toBlob(async (blob) => {
+          if (!blob) {
+            showStatus("Erreur de traitement d'image.", true);
+            return;
+          }
+          const paddedFile = new File([blob], "padded_qr.png", { type: "image/png" });
+          const html5QrCodeScanner = new Html5Qrcode("reader");
+
+          try {
+            const decodedText = await html5QrCodeScanner.scanFile(paddedFile, true);
+            const extractedId = extractIdFromQR(decodedText);
+            document.getElementById('search-id').value = extractedId;
+            searchClientById(extractedId);
+          } catch (err) {
+            console.error("Scan error:", err);
+            showStatus("Impossible de lire un code QR dans cette image. Essayez une photo plus nette.", true);
+          }
+        }, 'image/png');
+      };
+
+      img.onerror = function() {
+        showStatus("Format d'image non valide.", true);
+      };
+
+      img.src = URL.createObjectURL(imageFile);
+    }
+
+    // Update Client Fullname
+    async function updateClientName() {
+      if (!activeClient) return;
+      const newName = document.getElementById('edit-fullname').value.trim();
+
+      if (!newName) {
+        showStatus("Le nom ne peut pas être vide.", true);
+        return;
+      }
+
+      const { error } = await supabaseClient
+        .from('Clients')
+        .update({ 'Client Fullname': newName })
+        .eq('Client_ID', activeClient['Client_ID']);
+
+      if (error) {
+        showStatus("Erreur lors de la mise à jour du nom.", true);
+      } else {
+        activeClient['Client Fullname'] = newName;
+        showStatus("Nom mis à jour avec succès!");
+      }
+    }
+
+    // Update Client Phone Number
+    async function updateClientPhone() {
+      if (!activeClient) return;
+      const newPhone = document.getElementById('edit-phone').value.trim();
+
+      showStatus("Mise à jour du numéro de téléphone...");
+
+      const { error } = await supabaseClient
+        .from('Clients')
+        .update({ 'Phone N°': newPhone })
+        .eq('Client_ID', activeClient['Client_ID']);
+
+      if (error) {
+        console.error("Phone update error:", error);
+        showStatus("Erreur lors de la mise à jour du téléphone.", true);
+      } else {
+        activeClient['Phone N°'] = newPhone;
+        document.getElementById('edit-phone').value = newPhone;
+        showStatus("Numéro de téléphone mis à jour avec succès!");
+      }
+    }
+
+    // Process New Purchase
+    async function processPurchase() {
+      if (!activeClient) return;
+
+      const priceVal = parseFloat(document.getElementById('purchase-price').value);
+      const descVal = document.getElementById('purchase-desc').value.trim();
+      const discountVal = parseInt(document.getElementById('purchase-discount').value);
+
+      if (isNaN(priceVal) || priceVal <= 0) {
+        showStatus("Veuillez saisir un prix d'achat valide.", true);
+        return;
+      }
+
+      if (!descVal) {
+        showStatus("Veuillez saisir une description.", true);
+        return;
+      }
+
+      let currentPts = parseFloat(activeClient['Current Points'] || '0');
+      let lifetimePts = parseFloat(activeClient['Lifetime Points'] || '0');
+      let purchasesCount = parseInt(activeClient['Purchases N°'] || '0');
+
+      let pointsChange = 0;
+
+      // Discount vs Points Calculation Logic
+      if (discountVal === 0) {
+        pointsChange = parseFloat((priceVal / 1000).toFixed(2)); 
+      } else if (discountVal === 10) {
+        pointsChange = -15;
+      } else if (discountVal === 20) {
+        pointsChange = -25;
+      } else if (discountVal === 30) {
+        pointsChange = -35;
+      }
+
+      // Check if client has enough points for discount
+      if (currentPts + pointsChange < 0) {
+        showStatus("Solde de points insuffisant pour cette réduction!", true);
+        return;
+      }
+
+      const newCurrentPts = currentPts + pointsChange;
+      const newLifetimePts = pointsChange > 0 ? lifetimePts + pointsChange : lifetimePts;
+      const newPurchasesCount = purchasesCount + 1;
+
+      // Automated Date Formatting for Postgres 'date' type (YYYY-MM-DD)
+      const now = new Date();
+      const dd = String(now.getDate()).padStart(2, '0');
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const yyyy = now.getFullYear();
+      const formattedDate = `${yyyy}-${mm}-${dd}`;
+
+      // 1. Insert into 'Purchases' Table
+      const { error: purchaseError } = await supabaseClient
+        .from('Purchases')
+        .insert([{
+          'Client_ID': activeClient['Client_ID'],
+          'Purchase Description': descVal,
+          'Price': priceVal,
+          'Date': formattedDate,
+          'Points_Change': pointsChange,
+          'Current Points': newCurrentPts
+        }]);
+
+      if (purchaseError) {
+        console.error(purchaseError);
+        showStatus("Erreur Supabase: " + purchaseError.message, true);
+        return;
+      }
+
+      // 2. Update 'Clients' Table
+      const { error: clientError } = await supabaseClient
+        .from('Clients')
+        .update({
+          'Current Points': newCurrentPts,
+          'Lifetime Points': newLifetimePts,
+          'Purchases N°': newPurchasesCount
+        })
+        .eq('Client_ID', activeClient['Client_ID']);
+
+      if (clientError) {
+        console.error(clientError);
+        showStatus("Achat enregistré mais erreur de mise à jour des points: " + clientError.message, true);
+        return;
+      }
+
+      // Reset Form & Update View
+      document.getElementById('purchase-price').value = '';
+      document.getElementById('purchase-desc').value = '';
+      document.getElementById('purchase-discount').value = '0';
+
+      searchClientById(activeClient['Client_ID']);
+      showStatus("Achat enregistré et points mis à jour avec succès!");
+    }
+  </script>
+</body>
+</html>

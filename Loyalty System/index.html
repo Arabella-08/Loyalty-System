@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Planners By Dounia - Carte de Fidélité</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,500;1,600&family=Playfair+Display:wght@600;700&family=Montserrat:wght@400;500;600&display=swap" rel="stylesheet">
+  
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: 'Montserrat', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background: linear-gradient(135deg, #f7cece 0%, #fae1d4 50%, #f3cbbe 100%);
+      padding: 20px;
+    }
+
+    /* Fixed & Enlarged Circular Logo */
+    .logo-container {
+      width: 130px;
+      height: 130px;
+      border-radius: 50%;
+      background: #ffffff;
+      border: 3px solid #d4a38f;
+      box-shadow: 0 8px 20px rgba(180, 120, 100, 0.25);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+
+    .logo-container img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    /* Loyalty Card Container */
+    .card {
+      background: #fcf8f2;
+      width: 100%;
+      max-width: 480px;
+      padding: 3rem 2rem;
+      border-radius: 28px;
+      box-shadow: 0 15px 35px rgba(150, 90, 70, 0.15);
+      text-align: center;
+      border: 1px solid rgba(212, 163, 143, 0.3);
+    }
+
+    .customer-name {
+      font-family: 'Playfair Display', serif;
+      font-size: 3rem;
+      font-weight: 700;
+      color: #7a4635;
+      margin-bottom: 0.2rem;
+    }
+
+    .subtext {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 1.5rem;
+      color: #926352;
+      margin-bottom: 1rem;
+    }
+
+    .points {
+      font-family: 'Playfair Display', serif;
+      font-size: 5rem;
+      font-weight: 700;
+      color: #8c513e;
+      line-height: 1;
+      margin-bottom: 2.5rem;
+    }
+
+    /* 3-Stage Progress Tracker */
+    .stages-container {
+      position: relative;
+      margin: 20px 10px 10px 10px;
+    }
+
+    /* Background & Active Connecting Lines */
+    .track-line {
+      position: absolute;
+      top: 38px;
+      left: 15%;
+      right: 15%;
+      height: 6px;
+      background: #e8d5cc;
+      z-index: 1;
+      border-radius: 10px;
+    }
+
+    .track-fill {
+      position: absolute;
+      top: 38px;
+      left: 15%;
+      height: 6px;
+      background: linear-gradient(90deg, #8a4e3b 0%, #d4a38f 100%);
+      z-index: 1;
+      border-radius: 10px;
+      width: 0%;
+      transition: width 0.8s ease-in-out;
+    }
+
+    .stages-flex {
+      display: flex;
+      justify-content: space-between;
+      position: relative;
+      z-index: 2;
+    }
+
+    .stage-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 80px;
+    }
+
+    .stage-pts {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #926352;
+      margin-bottom: 8px;
+    }
+
+    .stage-node {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #ffffff;
+      border: 3px solid #d4a38f;
+      transition: all 0.4s ease;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+
+    .stage-discount {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #7a4635;
+      margin-top: 8px;
+    }
+
+    /* Active Stage Styling */
+    .stage-item.active .stage-node {
+      background: #8a4e3b;
+      border-color: #8a4e3b;
+      box-shadow: 0 0 10px rgba(138, 78, 59, 0.4);
+      transform: scale(1.2);
+    }
+
+    .stage-item.active .stage-pts {
+      color: #8a4e3b;
+      font-weight: 700;
+    }
+
+    .stage-item.active .stage-discount {
+      color: #8a4e3b;
+    }
+
+    @media (max-width: 480px) {
+      .logo-container {
+        width: 110px;
+        height: 110px;
+      }
+
+      .customer-name {
+        font-size: 2.4rem;
+      }
+
+      .points {
+        font-size: 4rem;
+      }
+
+      .stage-item {
+        width: 65px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Circular Logo Banner -->
+  <div class="logo-container">
+    <img src="logo.png" alt="Planners By Dounia Logo">
+  </div>
+
+  <!-- Loyalty Card -->
+  <div class="card">
+    <h1 class="customer-name" id="name">Chargement...</h1>
+    <p class="subtext">Votre Solde de Points Actuel</p>
+    <div class="points" id="points">--</div>
+    
+    <!-- 3-Stage Milestone Tracker -->
+    <div class="stages-container">
+      <div class="track-line"></div>
+      <div class="track-fill" id="track-fill"></div>
+
+      <div class="stages-flex">
+        <!-- Stage 1 -->
+        <div class="stage-item" id="stage-1">
+          <span class="stage-pts">15 Pts</span>
+          <div class="stage-node"></div>
+          <span class="stage-discount">10%</span>
+        </div>
+
+        <!-- Stage 2 -->
+        <div class="stage-item" id="stage-2">
+          <span class="stage-pts">25 Pts</span>
+          <div class="stage-node"></div>
+          <span class="stage-discount">20%</span>
+        </div>
+
+        <!-- Stage 3 -->
+        <div class="stage-item" id="stage-3">
+          <span class="stage-pts">35 Pts</span>
+          <div class="stage-node"></div>
+          <span class="stage-discount">30%</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://klomioofikbynucovhpv.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtsb21pb29maWtieW51Y292aHB2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgzNTE1OTEsImV4cCI6MjEwMzkyNzU5MX0.uUQDkFPu43Zn0caT1YTocuyfMhn2zwSXHFRdftWqd_U';
+    
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    async function fetchPoints() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const customerId = urlParams.get('id');
+
+      if (!customerId) {
+        document.getElementById('name').innerText = "Carte Invalide";
+        return;
+      }
+
+      const { data, error } = await supabaseClient
+        .from('customers')
+        .select('name, points')
+        .eq('id', customerId)
+        .single();
+
+      if (error || !data) {
+        document.getElementById('name').innerText = "Carte Non Trouvée";
+      } else {
+        const pts = data.points;
+        document.getElementById('name').innerText = data.name;
+        document.getElementById('points').innerText = pts;
+
+        // Stage Activations
+        if (pts >= 15) document.getElementById('stage-1').classList.add('active');
+        if (pts >= 25) document.getElementById('stage-2').classList.add('active');
+        if (pts >= 35) document.getElementById('stage-3').classList.add('active');
+
+        // Progress Line Width Calculation (Scaled between Stage 15 and Stage 35)
+        let fillWidth = 0;
+        if (pts >= 35) {
+          fillWidth = 70; // Fully connects Stage 1 to Stage 3
+        } else if (pts >= 15) {
+          fillWidth = ((pts - 15) / (35 - 15)) * 70;
+        } else {
+          fillWidth = 0;
+        }
+        document.getElementById('track-fill').style.width = fillWidth + '%';
+      }
+    }
+
+    fetchPoints();
+  </script>
+</body>
+</html>

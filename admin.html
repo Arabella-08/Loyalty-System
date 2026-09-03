@@ -144,6 +144,14 @@
       background: #b88370;
     }
 
+    .btn-danger {
+      background: #c62828;
+    }
+
+    .btn-danger:hover {
+      background: #9a1f1f;
+    }
+
     .btn-logout {
       position: absolute;
       top: 20px;
@@ -271,8 +279,8 @@
         </div>
       </div>
 
-      <!-- SECTION 3: ADD PURCHASE -->
-      <div class="section-title">3. Ajouter un Achat</div>
+      <!-- SECTION 3: ADD PURCHASE & UNDO -->
+      <div class="section-title">3. Gérer les Achats</div>
       <div class="client-card">
         <div class="form-group">
           <label>Prix de l'achat</label>
@@ -295,6 +303,7 @@
         </div>
 
         <button class="btn" style="width: 100%; margin-top: 10px;" onclick="processPurchase()">Valider l'Achat</button>
+        <button class="btn btn-danger" style="width: 100%; margin-top: 12px;" onclick="undoLastPurchase()">↩️ Annuler le dernier achat</button>
       </div>
     </div>
 
@@ -584,6 +593,13 @@
         return;
       }
 
+      // Confirmation Pop-up Dialog
+      const confirmMsg = discountVal > 0 
+        ? `Confirmer l'achat de ${priceVal} DA avec une réduction de ${discountVal}% (-${Math.abs(pointsChange)} pts) ?`
+        : `Confirmer l'achat de ${priceVal} DA (+${pointsChange} pts) ?`;
+
+      if (!confirm(confirmMsg)) return;
+
       const newCurrentPts = currentPts + pointsChange;
       const newLifetimePts = pointsChange > 0 ? lifetimePts + pointsChange : lifetimePts;
       const newPurchasesCount = purchasesCount + 1;
@@ -636,6 +652,69 @@
 
       searchClientById(activeClient['Client_ID']);
       showStatus("Achat enregistré et points mis à jour avec succès!");
+    }
+
+    // Undo Last Purchase
+    async function undoLastPurchase() {
+      if (!activeClient) return;
+
+      if (!confirm("Voulez-vous vraiment annuler le dernier achat enregistré pour ce client ?")) {
+        return;
+      }
+
+      showStatus("Annulation en cours...");
+
+      // 1. Fetch the latest purchase record for this client
+      const { data: purchases, error: fetchError } = await supabaseClient
+        .from('Purchases')
+        .select('*')
+        .eq('Client_ID', activeClient['Client_ID'])
+        .order('Date', { ascending: false })
+        .limit(1);
+
+      if (fetchError || !purchases || purchases.length === 0) {
+        showStatus("Aucun achat trouvé à annuler.", true);
+        return;
+      }
+
+      const lastPurchase = purchases[0];
+
+      // 2. Delete that purchase row from Supabase
+      const { error: deleteError } = await supabaseClient
+        .from('Purchases')
+        .delete()
+        .eq('Client_ID', activeClient['Client_ID'])
+        .eq('Price', lastPurchase.Price)
+        .eq('Purchase Description', lastPurchase['Purchase Description']);
+
+      if (deleteError) {
+        showStatus("Erreur lors de l'annulation: " + deleteError.message, true);
+        return;
+      }
+
+      // 3. Reverse the points change on the client
+      const pointsChange = lastPurchase['Points_Change'] || 0;
+      const currentPts = parseFloat(activeClient['Current Points'] || '0');
+      const lifetimePts = parseFloat(activeClient['Lifetime Points'] || '0');
+      const purchasesCount = parseInt(activeClient['Purchases N°'] || '0');
+
+      const revertedCurrent = Math.max(0, currentPts - pointsChange);
+      const revertedLifetime = pointsChange > 0 ? Math.max(0, lifetimePts - pointsChange) : lifetimePts;
+      const revertedCount = Math.max(0, purchasesCount - 1);
+
+      // 4. Update Clients table
+      await supabaseClient
+        .from('Clients')
+        .update({
+          'Current Points': revertedCurrent,
+          'Lifetime Points': revertedLifetime,
+          'Purchases N°': revertedCount
+        })
+        .eq('Client_ID', activeClient['Client_ID']);
+
+      // Refresh view
+      searchClientById(activeClient['Client_ID']);
+      showStatus("Dernier achat annulé et points restaurés avec succès!");
     }
   </script>
 </body>
